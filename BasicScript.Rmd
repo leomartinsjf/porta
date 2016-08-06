@@ -1,0 +1,426 @@
+---
+title: "Analise Porta dos Fundos Adaptado Basic Text Mining in R"
+author: "Raiza Campos"
+date: "5 de agosto de 2016"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    number_sections: yes
+    toc: yes
+---
+#Loading Files
+```{r}
+base <- read.delim("~/porta/base/comments.tab", stringsAsFactors=FALSE)
+base<-base$text
+write(base, file="~/porta/corpus/base.txt")
+base<-read.delim("~/porta/corpus/base.txt", stringsAsFactors=FALSE)
+#View(base)
+```
+
+## Basic Text Mining in R
+
+To start, install the packages you need to mine text
+You only need to do this step once.
+
+```{r}
+#Needed <- c("tm", "SnowballCC", "RColorBrewer", "ggplot2", "wordcloud", "biclust", "cluster", "igraph", "fpc")   
+#install.packages(Needed, dependencies=TRUE)   
+#install.packages("Rcampdf", repos = "http://datacube.wu.ac.at/", type = "source")  
+#install.packages("twitteR")
+#require(twitterR)
+```
+
+If you get the following message:
+Update all/some/none? [a/s/n]:
+enter “a” and press return
+
+#Loading Texts
+Start by saving your text files in a folder titled: “texts” This will be the “corpus” (body) of texts you are mining.
+
+Note: The texts used in this example are a few websites about qualitative data analysis that were copied and pasted into a text document. You can use a variety of media for this, such as PDF and HTML. The text example was chosen because it most closely matches the data used in the QDA Mash-up class.
+
+Read this next part carefully. You need to to three unique things here:
+1. Create a file named “texts” where you’ll keep your data.
+2. Save the file to a particular place
++ Mac: Desktop
++ PC: C: drive
+3. Copy and paste the appropriate scripts below.
+
+On a Mac, save the folder to your desktop and use the following code chunk:
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+cname <- file.path("~", "porta", "corpus")   
+cname  
+```
+
+```{r}
+dir(cname)   # Use this to check to see that your texts have loaded.   
+```
+
+On a PC, save the folder to your C: drive and use the following code chunk:
+```{r}
+#cname <- file.path("C:", "texts")   
+#cname   
+#dir(cname)
+```
+Load the R package for text mining and then load your texts into R.
+```{r}
+library(tm)   
+docs <- Corpus(DirSource(cname))   
+```
+If you so desire, you can read your documents in the R terminal using inspect(docs). Or, if you prefer to look at only one of the documents you loaded, then you can specify which one using something like:
+```{r}
+inspect(docs[1])
+```
+
+In this case, you would call up only the first document you loaded. Be careful. Either of these commands will fill up your screen fast.
+
+#Preprocessing
+Once you are sure that all documents loaded properly, go on to preprocess your texts.
+This step allows you to remove numbers, capitalization, common words, punctuation, and otherwise prepare your texts for analysis.
+This can be somewhat time consuming and picky, but it pays off in the end in terms of high quality analyses.
+
+Removing punctuation:
+Your computer cannot actually read. Punctuation and other special characters only look like more words to your computer and R. Use the following to methods to remove them from your text.
+
+```{r}
+docs <- tm_map(docs, removePunctuation)   
+#inspect(docs[1]) # Check to see if it worked. 
+```
+
+If necesasry, such as when working with emails, you can remove special characters.
+This list has been customized to remove punctuation that you commonly find in emails. You can customize what is removed by changing them as you see fit, to meet your own unique needs.
+
+```{r}
+for(j in seq(docs))   
+   {   
+     docs[[j]] <- gsub("/", " ", docs[[j]])   
+     docs[[j]] <- gsub("@", " ", docs[[j]])   
+     docs[[j]] <- gsub("\\|", " ", docs[[j]])
+     docs[[j]] <- gsub("<>", " ", docs[[j]])
+     docs[[j]] <- gsub("<*>", " ", docs[[j]])
+  }   
+#inspect(docs[1]) # You can check a document (in this case the first) to see if it worked.   
+```
+
+Removing numbers:
+```{r}
+docs <- tm_map(docs, removeNumbers)   
+# inspect(docs[1]) # Check to see if it worked.   
+```
+
+Converting to lowercase:
+As before, we want a word to appear exactly the same every time it appears. We therefore change everything to lowercase.
+```{r}
+docs <- tm_map(docs, tolower)   
+# inspect(docs[1]) # Check to see if it worked. 
+```
+
+Removing “stopwords” (common words) that usually have no analytic value.
+In every text, there are a lot of common, and uninteresting words (a, and, also, the, etc.). Such words are frequent by their nature, and will confound your analysis if they remain in the text.
+```{r}
+# For a list of the stopwords, see:   
+length(stopwords("portuguese"))   
+stopwords("portuguese")   
+docs <- tm_map(docs, removeWords, stopwords("portuguese"))
+docs <- tm_map(docs, removeWords, stopwords("english"))  
+#inspect(docs[1]) # Check to see if it worked.   
+```
+
+Removing particular words:
+If you find that a particular word or two appear in the output, but are not of value to your particular analysis. You can remove them, specifically, from the text.
+```{r}
+docs <- tm_map(docs, removeWords, c("department", "email", "pra", "que", "por","aqui", "ziyndwvwhzuvyfnzzspartndgr"))   
+# Just replace "department" and "email" with words that you would like to remove.
+```
+
+# remove URLs
+```{r}
+removeURL <- function(x) gsub("http[[:alnum:]]*", "", x)
+docs <- tm_map(docs, removeURL, lazy=TRUE) 
+```
+
+# The code below is used for to make text fit for paper width 
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+for (i in 1:1) {
+    cat(paste("[[", i, "]] ", sep = ""))
+    #writeLines(docs[[i]])
+    writeLines(as.character(docs[[i]]))
+}
+```
+
+#Combining words that should stay together
+If you wish to preserve a concept is only apparent as a collection of two or more words, then you can combine them or reduce them to a meaningful acronym before you begin the analysis. Here, I am using examples that are particular to qualitative data analysis.
+```{r}
+for (j in seq(docs))
+{
+docs[[j]] <- gsub("Fábio Porchat", "Porchat", docs[[j]])
+docs[[j]] <- gsub("Fabio Porchat", "Porchat", docs[[j]])
+docs[[j]] <- gsub("Porchá", "Porchat", docs[[j]])
+docs[[j]] <- gsub("vídeos", "vídeo", docs[[j]])
+docs[[j]] <- gsub("kkk*", "kkkk", docs[[j]])
+docs[[j]] <- gsub("hah*", "hahah", docs[[j]])
+docs[[j]] <- gsub("hah*", "hahah", docs[[j]])
+docs[[j]] <- gsub("hhah*", "hahah", docs[[j]])
+docs[[j]] <- gsub("aha*", "hahah", docs[[j]])
+docs[[j]] <- gsub("kkkkkk*", "kkkk", docs[[j]])
+docs[[j]] <- gsub("kkkkkk", "kkkk", docs[[j]])
+docs[[j]] <- gsub("video", "vídeo", docs[[j]])
+docs[[j]] <- gsub("nao", "não", docs[[j]])
+docs[[j]] <- gsub("nao", "não", docs[[j]])
+docs[[j]] <- gsub("aaa*", "aaaaa", docs[[j]])
+docs[[j]] <- gsub('^[ha]+$', "aaaaa", docs[[j]])
+docs[[j]] <- gsub('^[ha]+$', "hahaha", docs[[j]])
+docs[[j]] <- gsub('^[hha]+$', "hahaha", docs[[j]])
+docs[[j]] <- gsub('^[hhha]+$', "hahaha", docs[[j]])
+docs[[j]] <- gsub('^[uashha]+$', "hahaha", docs[[j]])
+docs[[j]] <- gsub('^[aeu]+$', "hahaha", docs[[j]])
+docs[[j]] <- gsub('hah[[:alnum:]]', "hahaha", docs[[j]])
+docs[[j]] <- gsub('hhah[[:alnum:]]', "hahaha", docs[[j]])
+}
+```
+
+Removing common word endings (e.g., “ing”, “es”, “s”)
+This is referred to as “stemming” documents. We stem the documents so that a word will be recognizable to the computer, despite whether or not it may have a variety of possible endings in the original text.
+```{r}
+library(SnowballC)   
+docs <- tm_map(docs, stemDocument, "portuguese")
+docs <- tm_map(docs, stemDocument)
+#inspect(docs[1]) # Check to see if it worked.   
+```
+
+Stripping unnecesary whitespace from your documents:
+The above preprocessing will leave the documents with a lot of “white space”. White space is the result of all the left over spaces that were not removed along with the words that were deleted. The white space can, and should, be removed.
+
+```{r}
+docs <- tm_map(docs, stripWhitespace)   
+#inspect(docs[1]) # Check to see if it worked.   
+```
+
+#To Finish
+Be sure to use the following script once you have completed preprocessing.
+This tells R to treat your preprocessed documents as text documents.
+```{r}
+docs <- tm_map(docs, PlainTextDocument)   
+```
+This is the end of the preprocessing stage.
+
+#Stage the Data
+To proceed, create a document term matrix.
+This is what you will be using from this point on.
+```{r}
+dtm <- DocumentTermMatrix(docs, control=list(wordLengths=c(4, 12)))
+#dtm 
+```
+
+To inspect, you can use: inspect(dtm)
+This will, however, fill up your terminal quickly. So you may prefer to view a subset:
+inspect(dtm[1:5, 1:20]) view first 5 docs & first 20 terms - modify as you like
+dim(dtm) This will display the number of documents & terms (in that order)
+
+You’ll also need a transpose of this matrix. Create it using:
+```{r}
+tdm <- TermDocumentMatrix(docs)   
+#tdm  
+```
+
+```{r}
+#inspect(dtm[1, 1:20])
+```
+
+#Explore your data
+Organize terms by their frequency:
+```{r}
+freq <- colSums(as.matrix(dtm))   
+length(freq)   
+```
+
+```{r}
+ord <- order(freq)  
+```
+
+If you prefer to export the matrix to Excel:   
+```{r}
+m <- as.matrix(dtm)   
+dim(m)   
+write.csv(m, file="dtm.csv")   
+```
+
+#Focus!
+Er, that is, you can focus on just the interesting stuff...
+```{r}
+#  Start by removing sparse terms:   
+dtms <- removeSparseTerms(dtm, 0.1) # This makes a matrix that is 10% empty space, maximum.   
+#inspect(dtms)  
+```
+
+#Word Frequency
+There are a lot of terms, so for now, just check out some of the most and least frequently occurring words.
+```{r}
+freq[head(ord)]   
+```
+
+```{r}
+freq[tail(ord)] 
+```
+
+```{r}
+head(table(freq), 20) 
+```
+
+The resulting output is two rows of numbers. The top number is the frequency with which words appear and the bottom number reflects how many words appear that frequently. Here, considering only the 20 lowest word frequencies, we can see that 995 terms appear only once. There are also a lot of others that appear very infrequently.
+
+```{r}
+tail(table(freq), 20)
+```
+
+Considering only the 20 greatest frequencies, we can see that there is a huge disparity in how frequently some terms appear.
+
+For a less, fine-grained look at term freqency we can view a table of the terms we selected when we removed sparse terms, above. (Look just under the word “Focus”.)
+
+```{r}
+freq <- colSums(as.matrix(dtms))   
+#freq  
+```
+
+The above matrix was created using a data transformation we made earlier. What follows is an alternative that will accomplish essentially the same thing.
+
+```{r}
+freq <- sort(colSums(as.matrix(dtms)), decreasing=TRUE)   
+head(freq, 14) 
+```
+
+An alternate view of term frequency:
+This will identify all terms that appear frequently (in this case, 50 or more times).
+
+```{r}
+findFreqTerms(dtm, lowfreq=150)   # Change "150" to whatever is most appropriate for your text data.
+```
+
+Yet another way to do this:
+```{r}
+wf <- data.frame(word=names(freq), freq=freq)   
+head(wf)  
+```
+
+Plot Word Frequencies
+Plot words that appear at least 150 times.
+
+```{r}
+library(ggplot2)   
+p <- ggplot(subset(wf, freq>150), aes(word, freq))    
+p <- p + geom_bar(stat="identity")   
+p <- p + theme(axis.text.x=element_text(angle=45, hjust=1))   
+p  
+```
+
+#Relationships Between Terms
+Term Correlations
+If you have a term in mind that you have found to be particularly meaningful to your analysis, then you may find it helpful to identify the words that most highly correlate with that term.
+
+If words always appear together, then correlation=1.0.
+
+```{r}
+findAssocs(dtms, c("nome"), corlimit=0.98) # specifying a correlation limit of 0.98 
+```
+
+
+In this case, “question” and “analysi” were highly correlated with numerous other terms. Setting corlimit= to 0.98 prevented the list from being overly long. Feel free to adjust the corlimit= to any value you feel is necessary.
+
+```{r}
+findAssocs(dtms, "contrast", corlimit=0.95) # specifying a correlation limit of 0.95  
+```
+
+#Word Clouds!
+Humans are generally strong at visual analytics. That is part of the reason that these have become so popular. What follows are a variety of alternatives for constructing word clouds with your text.
+
+But first you will need to load the package that makes word clouds in R.
+
+```{r}
+library(wordcloud)
+```
+
+Plot words that occur at least 25 times.
+```{r}
+set.seed(142)   
+wordcloud(names(freq), freq, min.freq=150) 
+```
+
+Note: The “set.seed() function just makes the configuration of the layout of the clouds consistent each time you plot them. You can omit that part if you are not concerned with preserving a particular layout.
+
+Plot the 100 most frequently used words.
+
+```{r}
+set.seed(142)   
+wordcloud(names(freq), freq, max.words=50) 
+```
+
+Add some color and plot words occurring at least 20 times.
+
+```{r}
+set.seed(142)   
+wordcloud(names(freq), freq, min.freq=150, scale=c(5, .1), colors=brewer.pal(6, "Dark2")) 
+```
+
+Plot the 100 most frequently occurring words.
+
+```{r}
+set.seed(142)   
+dark2 <- brewer.pal(6, "Dark2")   
+wordcloud(names(freq), freq, max.words=100, rot.per=0.2, colors=dark2)  
+```
+
+#Clustering by Term Similarity
+To do this well, you should always first remove a lot of the uninteresting or infrequent words. If you have not done so already, you can remove these with the following code.
+
+```{r}
+dtmss <- removeSparseTerms(dtms, 0.10) # This makes a matrix that is only 10% empty space, maximum.  
+#inspect(dtmss)   
+```
+
+#Hierarchal Clustering
+First calculate distance between words & then cluster them according to similarity.
+```{r}
+library(cluster)   
+d <- dist(t(dtmss), method="euclidian")   
+fit <- hclust(d=d, method="ward")   
+fit  
+```
+ 
+```{r}
+#plot(fit, hang=-1)   
+```
+
+Some people find dendrograms to be fairly clear to read. Others simply find them perplexing. Here, we can see two, three, four, five, six, seven, or many more groups that are identifiable in the dendrogram.
+
+#Helping to Read a Dendrogram
+If you find dendrograms difficult to read, then there is still hope.
+To get a better idea of where the groups are in the dendrogram, you can also ask R to help identify the clusters. Here, I have arbitrarily chosen to look at five clusters, as indicated by the red boxes. If you would like to highlight a different number of groups, then feel free to change the code accordingly.
+
+```{r}
+#plot.new()
+#plot(fit, hang=-1)
+#groups <- cutree(fit, k=5)   # "k=" defines the number of clusters you are using   
+#rect.hclust(fit, k=5, border="red") # draw dendogram with red borders around the 5 clusters  
+```
+
+#K-means clustering
+The k-means clustering method will attempt to cluster words into a specified number of groups (in this case 2), such that the sum of squared distances between individual words and one of the group centers. You can change the number of groups you seek by changing the number specified within the kmeans() command.
+
+```{r}
+#library(fpc)   
+#d <- dist(t(dtmss), method="euclidian")   
+#kfit <- kmeans(d, 2)
+#kfit
+#clusplot(as.matrix(d), kfit$cluster, color=T, shade=T, labels=2, lines=0)   
+```
+
+#Saving objects
+```{r}
+save.image("~/porta/objectfromBasicScript.RData")
+```
+
